@@ -1,0 +1,468 @@
+// Chatwoot Billing System - Database Schema
+// Diseñado para Laravel 12 + Filament 4
+
+Project chatwoot_billing {
+  database_type: 'MySQL'
+  Note: 'Sistema de facturación para Chatwoot autohospedado con MercadoPago'
+}
+
+// ============================================
+// USUARIOS Y ROLES (Spatie Permission)
+// ============================================
+
+Table users {
+  id bigint [pk, increment]
+  name varchar(255)
+  email varchar(255) [unique, not null]
+  email_verified_at timestamp [null]
+  password varchar(255)
+  phone varchar(20) [null]
+  company_name varchar(255) [null]
+  remember_token varchar(100) [null]
+  created_at timestamp
+  updated_at timestamp
+
+  Indexes {
+    email
+  }
+
+  Note: 'Usuarios del sistema (admins y suscriptores)'
+}
+
+Table roles {
+  id bigint [pk, increment]
+  name varchar(255) [unique, not null]
+  guard_name varchar(255) [not null, default: 'web']
+  created_at timestamp
+  updated_at timestamp
+
+  Note: 'Roles: admin, subscriber'
+}
+
+Table permissions {
+  id bigint [pk, increment]
+  name varchar(255) [unique, not null]
+  guard_name varchar(255) [not null, default: 'web']
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table model_has_roles {
+  role_id bigint [ref: > roles.id]
+  model_type varchar(255) [not null]
+  model_id bigint [not null]
+
+  Indexes {
+    (model_type, model_id)
+    role_id
+  }
+}
+
+Table model_has_permissions {
+  permission_id bigint [ref: > permissions.id]
+  model_type varchar(255) [not null]
+  model_id bigint [not null]
+
+  Indexes {
+    (model_type, model_id)
+    permission_id
+  }
+}
+
+Table role_has_permissions {
+  permission_id bigint [ref: > permissions.id]
+  role_id bigint [ref: > roles.id]
+
+  Indexes {
+    (permission_id, role_id)
+  }
+}
+
+// ============================================
+// PLANES DE SUSCRIPCIÓN
+// ============================================
+
+Table plans {
+  id bigint [pk, increment]
+  name varchar(255) [not null]
+  slug varchar(255) [unique, not null]
+  description text [null]
+  price decimal(10,2) [not null]
+  currency varchar(3) [not null, default: 'COP']
+  billing_cycle enum('monthly', 'yearly') [not null, default: 'monthly']
+
+  // Límites del plan
+  max_agents int [not null, default: 5]
+  max_inboxes int [not null, default: 3]
+  max_contacts int [not null, default: 1000]
+  max_conversations_per_month int [null]
+
+  // Features adicionales
+  features json [null, note: 'Array de características como ["Soporte prioritario", "API access"]']
+
+  // Control
+  is_active boolean [not null, default: true]
+  is_popular boolean [not null, default: false]
+  sort_order int [not null, default: 0]
+
+  // MercadoPago
+  mercadopago_plan_id varchar(255) [null, unique]
+
+  created_at timestamp
+  updated_at timestamp
+
+  Indexes {
+    slug
+    is_active
+    (is_active, sort_order)
+  }
+
+  Note: 'Planes de suscripción disponibles (Básico, Profesional, Empresarial)'
+}
+
+// ============================================
+// SUSCRIPCIONES
+// ============================================
+
+Table subscriptions {
+  id bigint [pk, increment]
+  user_id bigint [not null, ref: > users.id]
+  plan_id bigint [not null, ref: > plans.id]
+
+  // Estado de la suscripción
+  status enum('pending', 'active', 'cancelled', 'expired', 'suspended') [not null, default: 'pending']
+
+  // Fechas importantes
+  started_at timestamp [null]
+  ends_at timestamp [null]
+  cancelled_at timestamp [null]
+  trial_ends_at timestamp [null]
+
+  // MercadoPago
+  mercadopago_subscription_id varchar(255) [null, unique]
+  mercadopago_payer_id varchar(255) [null]
+  mercadopago_preapproval_id varchar(255) [null]
+
+  // Facturación
+  next_billing_date date [null]
+  last_payment_date date [null]
+
+  created_at timestamp
+  updated_at timestamp
+
+  Indexes {
+    user_id
+    plan_id
+    status
+    (user_id, status)
+    mercadopago_subscription_id
+    next_billing_date
+  }
+
+  Note: 'Suscripciones de usuarios a planes'
+}
+
+// ============================================
+// CONFIGURACIÓN DE PAYMENT GATEWAYS
+// ============================================
+
+Table payment_gateway_configs {
+  id bigint [pk, increment]
+
+  // Identificación del gateway
+  gateway_name varchar(50) [unique, not null, note: 'mercadopago, stripe, paypal, etc']
+  display_name varchar(100) [not null, note: 'Nombre para mostrar']
+
+  // Estado
+  is_enabled boolean [not null, default: false]
+  is_default boolean [not null, default: false]
+
+  // Credenciales (encriptadas)
+  credentials json [null, note: 'API keys y secrets encriptados']
+
+  // Configuración adicional
+  settings json [null, note: 'Configuraciones específicas del gateway']
+
+  // Países soportados
+  supported_countries json [null, note: 'Array de códigos ISO: ["CO", "AR", "MX"]']
+
+  // Información adicional
+  description text [null]
+  logo_url varchar(255) [null]
+
+  created_at timestamp
+  updated_at timestamp
+
+  Indexes {
+    gateway_name
+    is_enabled
+    is_default
+  }
+
+  Note: 'Configuración de pasarelas de pago disponibles en el sistema'
+}
+
+// ============================================
+// MÉTODOS DE PAGO
+// ============================================
+
+Table payment_methods {
+  id bigint [pk, increment]
+  user_id bigint [not null, ref: > users.id]
+
+  // Payment Gateway
+  payment_gateway varchar(50) [not null, default: 'mercadopago', note: 'mercadopago, stripe, paypal, etc']
+
+  // Información del método de pago
+  type enum('credit_card', 'debit_card', 'pse', 'efecty', 'other') [not null]
+  is_default boolean [not null, default: false]
+
+  // Gateway Card/Customer IDs (genéricos)
+  gateway_card_id varchar(255) [null]
+  gateway_customer_id varchar(255) [null]
+
+  // Información enmascarada (para mostrar al usuario)
+  last_four_digits varchar(4) [null]
+  card_brand varchar(50) [null, note: 'visa, mastercard, amex, etc']
+  expiration_month varchar(2) [null]
+  expiration_year varchar(4) [null]
+  cardholder_name varchar(255) [null]
+
+  // Estado
+  is_active boolean [not null, default: true]
+
+  created_at timestamp
+  updated_at timestamp
+
+  Indexes {
+    user_id
+    payment_gateway
+    (user_id, is_default)
+    gateway_customer_id
+  }
+
+  Note: 'Métodos de pago guardados con soporte multi-gateway'
+}
+
+// ============================================
+// PAGOS
+// ============================================
+
+Table payments {
+  id bigint [pk, increment]
+  subscription_id bigint [not null, ref: > subscriptions.id]
+  user_id bigint [not null, ref: > users.id]
+  payment_method_id bigint [null, ref: > payment_methods.id]
+
+  // Payment Gateway
+  payment_gateway varchar(50) [not null, default: 'mercadopago', note: 'mercadopago, stripe, paypal, etc']
+
+  // Información del pago
+  amount decimal(10,2) [not null]
+  currency varchar(3) [not null, default: 'COP']
+  status enum('pending', 'approved', 'rejected', 'cancelled', 'refunded', 'charged_back') [not null]
+
+  // Gateway Payment IDs (genéricos)
+  gateway_payment_id varchar(255) [unique, not null]
+  gateway_status varchar(50) [null]
+  gateway_status_detail varchar(255) [null]
+  payment_method_id_gateway varchar(50) [null, note: 'ID del método de pago en el gateway']
+  payment_type varchar(50) [null]
+
+  // Metadata
+  metadata json [null, note: 'Datos adicionales del pago del gateway']
+
+  // Fechas
+  paid_at timestamp [null]
+  created_at timestamp
+  updated_at timestamp
+
+  Indexes {
+    subscription_id
+    user_id
+    payment_method_id
+    payment_gateway
+    status
+    gateway_payment_id
+    (user_id, status)
+    paid_at
+  }
+
+  Note: 'Historial de pagos con soporte multi-gateway'
+}
+
+// ============================================
+// CUENTAS DE CHATWOOT
+// ============================================
+
+Table chatwoot_accounts {
+  id bigint [pk, increment]
+  subscription_id bigint [unique, not null, ref: > subscriptions.id]
+  user_id bigint [not null, ref: > users.id]
+
+  // Datos de Chatwoot
+  chatwoot_account_id int [unique, not null]
+  chatwoot_account_name varchar(255) [not null]
+  chatwoot_user_id int [null, note: 'ID del usuario administrador creado']
+
+  // Credenciales sincronizadas con Laravel
+  // El email y password son los mismos que en la tabla users
+  // Se sincronizan automáticamente en la creación
+
+  // URLs de acceso
+  chatwoot_url varchar(255) [null]
+  chatwoot_dashboard_url varchar(255) [null]
+
+  // Estado
+  status enum('active', 'suspended', 'deleted') [not null, default: 'active']
+
+  // Configuración inicial
+  locale varchar(10) [default: 'es']
+  timezone varchar(50) [default: 'America/Bogota']
+
+  // Metadata de sincronización
+  last_synced_at timestamp [null]
+  sync_error text [null]
+
+  created_at timestamp
+  updated_at timestamp
+  deleted_at timestamp [null]
+
+  Indexes {
+    subscription_id
+    user_id
+    chatwoot_account_id
+    status
+  }
+
+  Note: 'Cuentas creadas en Chatwoot vinculadas a suscripciones'
+}
+
+// ============================================
+// MÉTRICAS DE CHATWOOT (Cache)
+// ============================================
+
+Table chatwoot_metrics {
+  id bigint [pk, increment]
+  chatwoot_account_id bigint [not null, ref: > chatwoot_accounts.id]
+
+  // Métricas generales
+  total_conversations int [default: 0]
+  open_conversations int [default: 0]
+  resolved_conversations int [default: 0]
+  pending_conversations int [default: 0]
+
+  // Agentes e Inboxes
+  total_agents int [default: 0]
+  active_agents int [default: 0]
+  total_inboxes int [default: 0]
+  total_contacts int [default: 0]
+
+  // Estadísticas de tiempo
+  avg_first_response_time int [null, note: 'En segundos']
+  avg_resolution_time int [null, note: 'En segundos']
+
+  // Periodo de las métricas
+  metrics_date date [not null]
+
+  // Datos raw de la API
+  raw_data json [null]
+
+  created_at timestamp
+  updated_at timestamp
+
+  Indexes {
+    chatwoot_account_id
+    metrics_date
+    (chatwoot_account_id, metrics_date)
+  }
+
+  Note: 'Cache de métricas de Chatwoot para mostrar en el dashboard del suscriptor'
+}
+
+// ============================================
+// WEBHOOKS DE MERCADOPAGO
+// ============================================
+
+Table webhook_logs {
+  id bigint [pk, increment]
+
+  // Datos del webhook
+  event_type varchar(100) [not null]
+  resource_type varchar(50) [null]
+  resource_id varchar(255) [null]
+
+  // Payload
+  payload json [not null]
+
+  // Procesamiento
+  status enum('pending', 'processing', 'processed', 'failed') [not null, default: 'pending']
+  processed_at timestamp [null]
+  error_message text [null]
+  attempts int [default: 0]
+
+  // Metadata
+  ip_address varchar(45) [null]
+  user_agent text [null]
+
+  created_at timestamp
+  updated_at timestamp
+
+  Indexes {
+    event_type
+    status
+    resource_id
+    created_at
+    (status, created_at)
+  }
+
+  Note: 'Log de webhooks recibidos de MercadoPago para debugging y retry'
+}
+
+// ============================================
+// LOGS DE ACTIVIDAD
+// ============================================
+
+Table activity_logs {
+  id bigint [pk, increment]
+  user_id bigint [null, ref: > users.id]
+
+  // Tipo de actividad
+  action varchar(100) [not null]
+  model_type varchar(255) [null]
+  model_id bigint [null]
+
+  // Detalles
+  description text [null]
+  properties json [null]
+
+  // Contexto
+  ip_address varchar(45) [null]
+  user_agent text [null]
+
+  created_at timestamp
+
+  Indexes {
+    user_id
+    (model_type, model_id)
+    action
+    created_at
+  }
+
+  Note: 'Registro de actividades importantes del sistema para auditoría'
+}
+
+// ============================================
+// RELACIONES PRINCIPALES
+// ============================================
+
+Ref: subscriptions.user_id > users.id [delete: cascade]
+Ref: subscriptions.plan_id > plans.id [delete: restrict]
+Ref: payments.subscription_id > subscriptions.id [delete: cascade]
+Ref: payments.user_id > users.id [delete: cascade]
+Ref: payments.payment_method_id > payment_methods.id [delete: set null]
+Ref: payment_methods.user_id > users.id [delete: cascade]
+Ref: chatwoot_accounts.subscription_id - subscriptions.id [delete: cascade]
+Ref: chatwoot_accounts.user_id > users.id [delete: cascade]
+Ref: chatwoot_metrics.chatwoot_account_id > chatwoot_accounts.id [delete: cascade]
+Ref: activity_logs.user_id > users.id [delete: set null]
