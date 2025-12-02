@@ -8,15 +8,16 @@
 namespace App\Jobs;
 
 use App\Models\Subscription;
+use Illuminate\Bus\Queueable;
 use App\Models\ChatwootAccount;
 use App\Services\ChatwootService;
-use App\Notifications\ChatwootAccountCreatedNotification;
-use Illuminate\Bus\Queueable;
+use App\Services\WebhookDispatcher;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
+use App\Notifications\ChatwootAccountCreatedNotification;
 
 class CreateChatwootAccountJob implements ShouldQueue
 {
@@ -31,7 +32,8 @@ class CreateChatwootAccountJob implements ShouldQueue
      */
     public function __construct(
         public Subscription $subscription
-    ) {}
+    ) {
+    }
 
     /**
      * Ejecutar el job
@@ -107,6 +109,21 @@ class CreateChatwootAccountJob implements ShouldQueue
 
             // Enviar notificación al usuario
             $user->notify(new ChatwootAccountCreatedNotification($chatwootAccount));
+
+            // Disparar webhooks personalizados del usuario
+            WebhookDispatcher::dispatch(
+                'account.created',
+                $user,
+                [
+                    'chatwoot_account_id' => $chatwootAccount->chatwoot_account_id,
+                    'account_name' => $chatwootAccount->chatwoot_account_name,
+                    'dashboard_url' => $chatwootAccount->full_dashboard_url,
+                    'plan' => [
+                        'name' => $plan->name,
+                        'price' => $plan->price,
+                    ],
+                ]
+            );
 
             // Sincronizar métricas iniciales
             SyncChatwootMetricsJob::dispatch($chatwootAccount);

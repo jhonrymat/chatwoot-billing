@@ -3,13 +3,14 @@
 namespace App\Jobs;
 
 use App\Models\Subscription;
-use App\Services\ChatwootService;
 use Illuminate\Bus\Queueable;
+use App\Services\ChatwootService;
+use App\Services\WebhookDispatcher;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
 
 class SuspendChatwootAccountJob implements ShouldQueue
 {
@@ -24,7 +25,8 @@ class SuspendChatwootAccountJob implements ShouldQueue
     public function __construct(
         public Subscription $subscription,
         public string $reason = 'payment_failed'
-    ) {}
+    ) {
+    }
 
     /**
      * Ejecutar el job
@@ -46,6 +48,16 @@ class SuspendChatwootAccountJob implements ShouldQueue
 
             // Actualizar estado local
             $chatwootAccount->suspend();
+
+            WebhookDispatcher::dispatch(
+                'account.suspended',
+                $this->subscription->user,
+                [
+                    'chatwoot_account_id' => $chatwootAccount->chatwoot_account_id,
+                    'reason' => $this->reason,
+                    'suspended_at' => now()->toIso8601String(),
+                ]
+            );
 
             // Registrar actividad
             activity()

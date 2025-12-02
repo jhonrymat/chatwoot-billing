@@ -3,14 +3,15 @@
 namespace App\Jobs;
 
 use App\Models\Subscription;
-use App\Services\ChatwootService;
-use App\Notifications\PlanLimitExceededNotification;
 use Illuminate\Bus\Queueable;
+use App\Services\ChatwootService;
+use App\Services\WebhookDispatcher;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
+use App\Notifications\PlanLimitExceededNotification;
 
 class CheckPlanLimitsJob implements ShouldQueue
 {
@@ -23,7 +24,8 @@ class CheckPlanLimitsJob implements ShouldQueue
      */
     public function __construct(
         public Subscription $subscription
-    ) {}
+    ) {
+    }
 
     /**
      * Ejecutar el job
@@ -56,6 +58,11 @@ class CheckPlanLimitsJob implements ShouldQueue
                 $this->subscription->user->notify(
                     new PlanLimitExceededNotification($limits, $exceeded->toArray())
                 );
+
+                WebhookDispatcher::dispatch('plan.limit_exceeded', $this->subscription->user, [
+                    'limits' => $limits,
+                    'exceeded' => $exceeded->toArray(),
+                ]);
 
                 Log::warning('Plan limits exceeded', [
                     'subscription_id' => $this->subscription->id,

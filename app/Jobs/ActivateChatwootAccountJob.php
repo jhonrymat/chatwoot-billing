@@ -3,13 +3,14 @@
 namespace App\Jobs;
 
 use App\Models\Subscription;
-use App\Services\ChatwootService;
 use Illuminate\Bus\Queueable;
+use App\Services\ChatwootService;
+use App\Services\WebhookDispatcher;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
 
 class ActivateChatwootAccountJob implements ShouldQueue
 {
@@ -23,7 +24,8 @@ class ActivateChatwootAccountJob implements ShouldQueue
      */
     public function __construct(
         public Subscription $subscription
-    ) {}
+    ) {
+    }
 
     /**
      * Ejecutar el job
@@ -45,6 +47,11 @@ class ActivateChatwootAccountJob implements ShouldQueue
 
             // Actualizar estado local
             $chatwootAccount->activate();
+
+            WebhookDispatcher::dispatch('account.activated', $this->subscription->user, [
+                'chatwoot_account_id' => $chatwootAccount->chatwoot_account_id,
+                'activated_at' => now()->toIso8601String(),
+            ]);
 
             // Registrar actividad
             activity()

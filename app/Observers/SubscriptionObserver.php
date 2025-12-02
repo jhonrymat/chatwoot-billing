@@ -3,10 +3,11 @@
 namespace App\Observers;
 
 use App\Models\Subscription;
+use App\Services\WebhookDispatcher;
+use Illuminate\Support\Facades\Log;
 use App\Jobs\CreateChatwootAccountJob;
 use App\Jobs\SuspendChatwootAccountJob;
 use App\Jobs\ActivateChatwootAccountJob;
-use Illuminate\Support\Facades\Log;
 
 class SubscriptionObserver
 {
@@ -43,6 +44,10 @@ class SubscriptionObserver
                 Log::info('Dispatching CreateChatwootAccountJob', [
                     'subscription_id' => $subscription->id,
                 ]);
+                WebhookDispatcher::dispatch('subscription.activated', $subscription->user, [
+                    'subscription_id' => $subscription->id,
+                    'plan' => ['name' => $subscription->plan->name],
+                ]);
                 CreateChatwootAccountJob::dispatch($subscription);
             }
 
@@ -58,6 +63,10 @@ class SubscriptionObserver
             if ($newStatus === 'cancelled') {
                 Log::info('Dispatching SuspendChatwootAccountJob', [
                     'subscription_id' => $subscription->id,
+                ]);
+                WebhookDispatcher::dispatch('subscription.cancelled', $subscription->user, [
+                    'subscription_id' => $subscription->id,
+                    'cancelled_at' => now()->toIso8601String(),
                 ]);
                 SuspendChatwootAccountJob::dispatch($subscription, 'subscription_cancelled');
             }
