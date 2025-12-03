@@ -2,13 +2,11 @@
 
 namespace App\Filament\Resources\UserWebhooks\Schemas;
 
-use App\Enums\WebhookEvent;
-use Filament\Schemas\Schema;
+use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Toggle;
-use Filament\Schemas\Components\Grid;
-use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Schema;
 
 class UserWebhookForm
 {
@@ -16,51 +14,48 @@ class UserWebhookForm
     {
         return $schema
             ->components([
+                Select::make('user_id')
+                    ->relationship('user', 'name')
+                    ->required(),
                 TextInput::make('name')
-                    ->required()
-                    ->label('Nombre del Webhook')
-                    ->placeholder('Ej: Notificar en WhatsApp'),
-
+                    ->required(),
                 TextInput::make('url')
-                    ->required()
                     ->url()
-                    ->label('URL del Webhook')
-                    ->placeholder('https://n8n.io/webhook/abc123')
-                    ->helperText('Esta URL será llamada cuando ocurra el evento'),
-
+                    ->required(),
                 Select::make('event')
-                    ->required()
-                    ->options(WebhookEvent::class)
-                    ->label('Evento')
-                    ->helperText('¿Cuándo debe dispararse este webhook?'),
-
-                TextInput::make('secret')
-                    ->label('Secret (Opcional)')
-                    ->password()
-                    ->helperText('Para verificar la firma del webhook')
-                    ->revealable(),
-
-                KeyValue::make('headers')
-                    ->label('Headers Personalizados')
-                    ->helperText('Ej: Authorization, X-API-Key')
-                    ->reorderable(),
-
+                    ->options([
+            'account.created' => 'Account.created',
+            'account.suspended' => 'Account.suspended',
+            'account.activated' => 'Account.activated',
+            'payment.approved' => 'Payment.approved',
+            'payment.failed' => 'Payment.failed',
+            'subscription.activated' => 'Subscription.activated',
+            'subscription.cancelled' => 'Subscription.cancelled',
+            'subscription.renewed' => 'Subscription.renewed',
+            'plan.limit_exceeded' => 'Plan.limit exceeded',
+        ])
+                    ->required(),
+                TextInput::make('secret'),
                 Toggle::make('is_active')
-                    ->label('Activo')
-                    ->default(true),
-
-                Grid::make(2)->schema([
-                    TextInput::make('max_retries')
-                        ->numeric()
-                        ->default(3)
-                        ->label('Máximo de Reintentos'),
-
-                    TextInput::make('timeout')
-                        ->numeric()
-                        ->default(10)
-                        ->suffix('segundos')
-                        ->label('Timeout'),
-                ])
+                    ->required(),
+                TextInput::make('headers'),
+                TextInput::make('max_retries')
+                    ->required()
+                    ->numeric()
+                    ->default(3),
+                TextInput::make('timeout')
+                    ->required()
+                    ->numeric()
+                    ->default(10),
+                TextInput::make('success_count')
+                    ->required()
+                    ->numeric()
+                    ->default(0),
+                TextInput::make('failure_count')
+                    ->required()
+                    ->numeric()
+                    ->default(0),
+                DateTimePicker::make('last_triggered_at'),
             ]);
     }
 }

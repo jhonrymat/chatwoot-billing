@@ -2,22 +2,25 @@
 
 namespace App\Providers\Filament;
 
-use Filament\Http\Middleware\Authenticate;
-use Filament\Http\Middleware\AuthenticateSession;
-use Filament\Http\Middleware\DisableBladeIconComponents;
-use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
+use Filament\Pages\Dashboard;
 use Filament\Support\Colors\Color;
 use Filament\Widgets\AccountWidget;
+use App\Filament\Widgets\StatsOverview;
+use Filament\Navigation\NavigationGroup;
 use Filament\Widgets\FilamentInfoWidget;
-use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
-use Illuminate\Cookie\Middleware\EncryptCookies;
-use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
-use Illuminate\Routing\Middleware\SubstituteBindings;
+use Filament\Http\Middleware\Authenticate;
+use App\Filament\Widgets\MySubscriptionWidget;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Cookie\Middleware\EncryptCookies;
+use Filament\Http\Middleware\AuthenticateSession;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Filament\Http\Middleware\DisableBladeIconComponents;
+use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
+use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -29,8 +32,12 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => Color::Blue,
+                'success' => Color::Green,
+                'warning' => Color::Yellow,
+                'danger' => Color::Red,
             ])
+            ->brandName('Chatwoot Billing')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
@@ -38,8 +45,20 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
+                StatsOverview::class,
+                MySubscriptionWidget::class,
                 AccountWidget::class,
-                FilamentInfoWidget::class,
+            ])
+            ->navigationGroups([
+                NavigationGroup::make('Facturación')
+                    ->icon('heroicon-o-currency-dollar'),
+                NavigationGroup::make('Chatwoot')
+                    ->icon('heroicon-o-chat-bubble-left-right'),
+                NavigationGroup::make('Sistema')
+                    ->icon('heroicon-o-cog-6-tooth')
+                    ->collapsed(), // Collapsed por defecto
+                NavigationGroup::make('Configuración')
+                    ->icon('heroicon-o-wrench-screwdriver'),
             ])
             ->middleware([
                 EncryptCookies::class,
@@ -54,6 +73,9 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
-            ]);
+            ])
+            ->sidebarCollapsibleOnDesktop()
+            // ->databaseNotifications()
+            ->spa();
     }
 }

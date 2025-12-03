@@ -1,47 +1,31 @@
 <?php
 
-namespace App\Filament\Resources\UserWebhooks\Tables;
+namespace App\Filament\Resources\Users\Tables;
 
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
-class UserWebhooksTable
+class UsersTable
 {
     public static function configure(Table $table): Table
     {
         return $table
             ->columns([
-                TextColumn::make('user.name')
-                    ->searchable(),
                 TextColumn::make('name')
                     ->searchable(),
-                TextColumn::make('url')
+                TextColumn::make('email')
+                    ->label('Email address')
                     ->searchable(),
-                TextColumn::make('event')
-                    ->badge(),
-                TextColumn::make('secret')
-                    ->searchable(),
-                IconColumn::make('is_active')
-                    ->boolean(),
-                TextColumn::make('max_retries')
-                    ->numeric()
-                    ->sortable(),
-                TextColumn::make('timeout')
-                    ->numeric()
-                    ->sortable(),
-                TextColumn::make('success_count')
-                    ->numeric()
-                    ->sortable(),
-                TextColumn::make('failure_count')
-                    ->numeric()
-                    ->sortable(),
-                TextColumn::make('last_triggered_at')
+                TextColumn::make('email_verified_at')
                     ->dateTime()
                     ->sortable(),
+                TextColumn::make('phone')
+                    ->searchable(),
+                TextColumn::make('company_name')
+                    ->searchable(),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

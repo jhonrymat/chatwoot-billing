@@ -13,16 +13,20 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 
 class UserWebhookResource extends Resource
 {
     protected static ?string $model = UserWebhook::class;
-    // icono de webhooks
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedLink;
 
-    protected static ?string $recordTitleAttribute = 'name';
+    protected static ?string $recordTitleAttribute = 'UserWebhook';
 
+    protected static ?string $navigationLabel = 'Webhooks';
+
+    protected static string|\UnitEnum|null $navigationGroup = 'Configuración';
+
+    protected static ?int $navigationSort = 1;
 
     public static function form(Schema $schema): Schema
     {
@@ -50,11 +54,11 @@ class UserWebhookResource extends Resource
         ];
     }
 
-    public static function getEloquentQuery(): Builder
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
     {
         $query = parent::getEloquentQuery();
 
-        // Si no es admin, solo ver sus propios webhooks
+        // Solo ver sus propios webhooks (admin también)
         if (!auth()->user()->isAdmin()) {
             $query->where('user_id', auth()->id());
         }
