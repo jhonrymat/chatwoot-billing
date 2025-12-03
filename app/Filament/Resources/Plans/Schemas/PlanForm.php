@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Filament\Resources\Plans\Schemas;
 
 use App\Enums\BillingCycle;
@@ -10,24 +9,22 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
-use Filament\Schemas\Components\Utilities\Set;
 
 class PlanForm
 {
     public static function configure(Schema $schema): Schema
     {
-        return $schema
-            ->components([
-                Section::make('Información Básica')
+        return $schema->components([
+            Section::make('Información Básica')
                 ->schema([
                     TextInput::make('name')
                         ->label('Nombre del Plan')
                         ->required()
                         ->maxLength(255)
                         ->live(onBlur: true)
-                        ->afterStateUpdated(fn ($state, Set $set) =>
-                            $set('slug', \Illuminate\Support\Str::slug($state))
-                        ),
+                        ->afterStateUpdated(function ($state, callable $set) {
+                            $set('slug', \Illuminate\Support\Str::slug($state));
+                        }),
 
                     TextInput::make('slug')
                         ->label('Slug')
@@ -127,6 +124,6 @@ class PlanForm
                         ->helperText('ID del plan en MercadoPago (opcional)')
                         ->maxLength(255),
                 ])->columns(2),
-            ]);
+        ]);
     }
 }

@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Filament\Resources\Plans\Tables;
 
 use App\Models\Plan;
@@ -36,7 +35,7 @@ class PlansTable
                 TextColumn::make('billing_cycle')
                     ->label('Ciclo')
                     ->badge()
-                    ->formatStateUsing(fn($state) => BillingCycle::from($state)->label()),
+                    ->formatStateUsing(fn ($state) => BillingCycle::from($state)->label()),
 
                 TextColumn::make('max_agents')
                     ->label('Agentes')
