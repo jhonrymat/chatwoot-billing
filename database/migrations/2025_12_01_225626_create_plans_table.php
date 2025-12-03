@@ -35,7 +35,7 @@ return new class extends Migration
             $table->integer('sort_order')->default(0);
 
             // MercadoPago
-            $table->string('gateway_plan_id')->nullable()->change();
+            $table->string('gateway_plan_id')->nullable();
 
             $table->timestamps();
 

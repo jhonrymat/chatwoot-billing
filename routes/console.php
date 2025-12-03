@@ -15,3 +15,13 @@ Schedule::command('chatwoot:sync-metrics')
 Schedule::command('chatwoot:check-limits')
     ->daily()
     ->at('09:00');
+
+// Procesar renovaciones diariamente
+Schedule::command('subscriptions:process-renewals')
+    ->daily()
+    ->at('00:00');
+
+// Enviar recordatorios de renovación
+Schedule::command('subscriptions:send-reminders')
+    ->daily()
+    ->at('10:00');

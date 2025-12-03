@@ -2,12 +2,13 @@
 
 namespace App\DTOs;
 
-class SubscriptionResponse
+class PaymentResponse
 {
     public function __construct(
-        public readonly string $subscriptionId,
+        public readonly string $paymentId,
         public readonly string $status,
-        public readonly ?string $checkoutUrl = null,
+        public readonly float $amount,
+        public readonly string $currency,
         public readonly ?array $metadata = null,
     ) {}
 }
