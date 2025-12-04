@@ -1,10 +1,4 @@
 <?php
-
-// ============================================
-// app/Filament/Widgets/MyRecentActivity.php
-// php artisan make:filament-widget MyRecentActivity --table
-// ============================================
-
 namespace App\Filament\Widgets;
 
 use App\Models\ActivityLog;
@@ -16,9 +10,11 @@ class MyRecentActivity extends BaseWidget
 {
     protected int | string | array $columnSpan = 'full';
 
+    protected static ?string $heading = 'Actividad Reciente';
+
     public static function canView(): bool
     {
-        return auth()->user()->isSubscriber();
+        return auth()->user()->hasRole('subscriber');
     }
 
     public function table(Table $table): Table
@@ -28,23 +24,35 @@ class MyRecentActivity extends BaseWidget
                 ActivityLog::query()
                     ->where('user_id', auth()->id())
                     ->latest()
-                    ->limit(10)
             )
             ->columns([
                 Tables\Columns\TextColumn::make('action')
                     ->label('Acción')
                     ->badge()
-                    ->formatStateUsing(fn ($state) => \App\Enums\ActivityAction::from($state)->label()),
+                    ->color(fn (string $state): string => match($state) {
+                        'created' => 'success',
+                        'updated' => 'info',
+                        'deleted' => 'danger',
+                        default => 'gray',
+                    })
+                    ->formatStateUsing(fn ($state) => ucfirst($state)),
 
                 Tables\Columns\TextColumn::make('description')
                     ->label('Descripción')
-                    ->limit(50),
+                    ->limit(60)
+                    ->tooltip(function (Tables\Columns\TextColumn $column): ?string {
+                        $state = $column->getState();
+                        return strlen($state) > 60 ? $state : null;
+                    }),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Fecha')
                     ->dateTime('d/m/Y H:i')
-                    ->sortable(),
+                    ->sortable()
+                    ->since(),
             ])
-            ->heading('Actividad Reciente');
+            ->defaultPaginationPageOption(10)
+            ->paginated([5, 10, 25])
+            ->poll('30s'); // ✅ Auto-refresh cada 30 segundos
     }
 }

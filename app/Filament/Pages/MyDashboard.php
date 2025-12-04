@@ -30,16 +30,39 @@ class MyDashboard extends Page
         return auth()->user()->isSubscriber();
     }
 
-    public function getWidgets(): array
+    // ✅ Getter para métricas (usado en la vista)
+    public function getChatwootMetricsProperty()
     {
+        $account = auth()->user()->activeChatwootAccount;
+
+        if (!$account) {
+            return [
+                'agents' => ['current' => 0, 'limit' => 0],
+                'inboxes' => ['current' => 0, 'limit' => 0],
+                'contacts' => ['current' => 0, 'limit' => 0],
+            ];
+        }
+
+        $metrics = $account->getLatestMetrics();
+        $plan = auth()->user()->activeSubscription?->plan;
+
         return [
-            MySubscriptionWidget::class,
-            MyChatwootMetrics::class,
-            MyRecentActivity::class,
+            'agents' => [
+                'current' => $metrics?->active_agents ?? 0,
+                'limit' => $plan?->max_agents ?? 0,
+            ],
+            'inboxes' => [
+                'current' => $metrics?->total_inboxes ?? 0,
+                'limit' => $plan?->max_inboxes ?? 0,
+            ],
+            'contacts' => [
+                'current' => $metrics?->total_contacts ?? 0,
+                'limit' => $plan?->max_contacts ?? 0,
+            ],
         ];
     }
 
-    public function getColumns(): int | string | array
+    public function getColumns(): int|string|array
     {
         return [
             'sm' => 1,

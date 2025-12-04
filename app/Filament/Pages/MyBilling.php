@@ -6,9 +6,11 @@
 
 namespace App\Filament\Pages;
 
-use Filament\Pages\Page;
 use BackedEnum;
+use Filament\Pages\Page;
+use Filament\Actions\Action;
 use Filament\Support\Icons\Heroicon;
+use Filament\Notifications\Notification;
 
 class MyBilling extends Page
 {
@@ -27,22 +29,35 @@ class MyBilling extends Page
 
     public static function canAccess(): bool
     {
-        return auth()->user()->isSubscriber();
+        return auth()->user()->hasRole('subscriber');
     }
 
     public function mount()
     {
         $this->subscription = auth()->user()->activeSubscription;
         $this->payments = auth()->user()->payments()
+            ->with('subscription.plan')
             ->latest()
             ->limit(10)
             ->get();
     }
 
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('downloadInvoices')
+                ->label('Descargar Facturas')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->color('gray')
+                ->url(route('invoices.download', ['user' => auth()->id()]))
+                ->visible(fn () => $this->payments->isNotEmpty()),
+        ];
+    }
+
     public function cancelSubscription()
     {
         if (!$this->subscription) {
-            \Filament\Notifications\Notification::make()
+            Notification::make()
                 ->title('No hay suscripción activa')
                 ->warning()
                 ->send();
@@ -50,17 +65,24 @@ class MyBilling extends Page
         }
 
         try {
-            $this->subscription->cancel();
+            // Llamar al servicio de cancelación
+            $this->subscription->update(['status' => 'cancelled']);
 
-            \Filament\Notifications\Notification::make()
+            // Registrar actividad
+            activity()
+                ->performedOn($this->subscription)
+                ->causedBy(auth()->user())
+                ->log('Suscripción cancelada por el usuario');
+
+            Notification::make()
                 ->title('Suscripción cancelada')
-                ->body('Tu suscripción ha sido cancelada exitosamente')
+                ->body('Tu suscripción se cancelará al final del período actual')
                 ->success()
                 ->send();
 
             $this->redirect(route('filament.admin.pages.my-dashboard'));
         } catch (\Exception $e) {
-            \Filament\Notifications\Notification::make()
+            Notification::make()
                 ->title('Error')
                 ->body($e->getMessage())
                 ->danger()
